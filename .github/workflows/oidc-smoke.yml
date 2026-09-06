@@ -1,0 +1,25 @@
+name: oidc-smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/oidc-smoke.yml"
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assume AWS role via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Confirm identity
+        run: aws sts get-caller-identity
