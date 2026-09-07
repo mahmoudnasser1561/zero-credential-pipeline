@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: prometheus
+  author: Mahmoud Nasser
+  description: Installs and runs Prometheus as a systemd service, scraping node_exporter
+  license: MIT
+  min_ansible_version: "2.15"

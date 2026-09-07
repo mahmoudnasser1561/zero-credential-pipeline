@@ -1,0 +1,18 @@
+[Unit]
+Description=Prometheus
+After=network.target
+
+[Service]
+User={{ prometheus_system_user }}
+Group={{ prometheus_system_group }}
+ExecStart={{ prometheus_bin_path }} \
+  --config.file={{ prometheus_config_dir }}/prometheus.yml \
+  --storage.tsdb.path={{ prometheus_data_dir }} \
+  --web.listen-address=:{{ prometheus_port }}
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths={{ prometheus_data_dir }}
+
+[Install]
+WantedBy=multi-user.target
