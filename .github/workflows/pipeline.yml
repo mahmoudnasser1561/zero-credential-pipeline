@@ -85,9 +85,21 @@ jobs:
       - name: Wait for instance SSM registration
         run: .github/scripts/wait-for-ssm-ready.sh
 
-      - name: Configure via Ansible
+      - name: Configure common
         working-directory: ansible
-        run: ansible-playbook site.yml
+        run: ansible-playbook site.yml --tags common
+
+      - name: Configure node_exporter
+        working-directory: ansible
+        run: ansible-playbook site.yml --tags node_exporter
+
+      - name: Configure prometheus
+        working-directory: ansible
+        run: ansible-playbook site.yml --tags prometheus
+
+      - name: Configure grafana
+        working-directory: ansible
+        run: ansible-playbook site.yml --tags grafana
 
       - name: Verify idempotency (second run must report no changes)
         run: .github/scripts/check-ansible-idempotent.sh ansible

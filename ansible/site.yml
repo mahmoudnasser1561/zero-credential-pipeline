@@ -5,7 +5,11 @@
   gather_facts: true
 
   roles:
-    - common
-    - node_exporter
-    - prometheus
-    - grafana
+    - role: common
+      tags: [common]
+    - role: node_exporter
+      tags: [node_exporter]
+    - role: prometheus
+      tags: [prometheus]
+    - role: grafana
+      tags: [grafana]
