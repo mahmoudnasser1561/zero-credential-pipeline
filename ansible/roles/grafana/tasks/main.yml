@@ -14,12 +14,20 @@
     repo_gpgcheck: true
     enabled: true
 
+- name: Check if grafana package is installed
+  ansible.builtin.command: "rpm -q grafana-{{ grafana_version }}-1.x86_64"  # noqa: command-instead-of-module
+  register: grafana_rpm_check
+  changed_when: false
+  failed_when: false
+
 - name: Install grafana package
-  ansible.builtin.dnf:
-    # full NEVRA required: a partial version string makes the dnf module
-    # misreport a successful install as a "already installed" failure
-    name: "grafana-{{ grafana_version }}-1.x86_64"
-    state: present
+  # ansible.builtin.dnf misreports this install as a failed
+  # "already installed" transaction test on AL2023's dnf4 bindings;
+  # the dnf CLI itself does not hit this bug
+  ansible.builtin.command: "dnf install -y grafana-{{ grafana_version }}-1.x86_64"  # noqa: command-instead-of-module
+  when: grafana_rpm_check.rc != 0
+  register: grafana_install
+  changed_when: grafana_rpm_check.rc != 0
 
 - name: Ensure datasource provisioning directory exists
   ansible.builtin.file:
