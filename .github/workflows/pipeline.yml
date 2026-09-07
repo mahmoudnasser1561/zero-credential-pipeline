@@ -81,14 +81,8 @@ jobs:
         working-directory: ansible
         run: ansible-playbook site.yml
 
-      - name: Configure via Ansible (idempotency check)
-        working-directory: ansible
-        run: |
-          ansible-playbook site.yml | tee /tmp/second-run.log
-          if grep -qE "changed=[1-9]" /tmp/second-run.log; then
-            echo "::error::Playbook is not idempotent - second run reported changes"
-            exit 1
-          fi
+      - name: Verify idempotency (second run must report no changes)
+        run: .github/scripts/check-ansible-idempotent.sh ansible
 
   destroy:
     needs: apply
