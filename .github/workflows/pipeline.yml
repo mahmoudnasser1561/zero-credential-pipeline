@@ -30,6 +30,7 @@ jobs:
       - name: ansible-lint
         run: |
           pip install --quiet ansible-lint
+          ansible-galaxy collection install -r ansible/requirements.yml
           ansible-lint ansible/roles
 
       - uses: aws-actions/configure-aws-credentials@v4
