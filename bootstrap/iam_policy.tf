@@ -124,6 +124,8 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "ssm:GetCommandInvocation",
       "ssm:DescribeInstanceInformation",
       "ssm:ListCommandInvocations",
+      "ssm:GetConnectionStatus",
+      "ssm:DescribeInstanceProperties",
     ]
     resources = ["*"]
   }
