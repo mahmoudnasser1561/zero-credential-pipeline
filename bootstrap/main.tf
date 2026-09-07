@@ -95,6 +95,12 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "ec2:DescribeIamInstanceProfileAssociations",
       "ec2:AssociateIamInstanceProfile",
       "ec2:DisassociateIamInstanceProfile",
+      "ec2:DescribeVpcAttribute",
+      "ec2:DescribeInstanceAttribute",
+      "ec2:DescribeVolumes",
+      "ec2:DescribeInstanceCreditSpecifications",
+      "ec2:DescribeNetworkInterfaces",
+      "ec2:DescribeNetworkInterfaceAttribute",
     ]
     resources = ["*"]
   }
@@ -111,6 +117,8 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "iam:GetRolePolicy",
       "iam:AttachRolePolicy",
       "iam:DetachRolePolicy",
+      "iam:ListRolePolicies",
+      "iam:ListAttachedRolePolicies",
       "iam:CreateInstanceProfile",
       "iam:DeleteInstanceProfile",
       "iam:GetInstanceProfile",
