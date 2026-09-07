@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "terraform/**"
+      - "ansible/**"
+  workflow_dispatch: {}
 
 permissions:
   id-token: write
@@ -60,6 +62,41 @@ jobs:
         run: |
           terraform init -input=false
           terraform apply -auto-approve -input=false
+
+      - name: Install Ansible tooling
+        run: |
+          pip install --quiet ansible boto3 botocore
+          ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: Install SSM Session Manager plugin
+        run: |
+          curl -sL "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o /tmp/session-manager-plugin.deb
+          sudo dpkg -i /tmp/session-manager-plugin.deb
+
+      - name: Wait for instance SSM registration
+        run: |
+          for i in $(seq 1 30); do
+            STATUS=$(aws ssm describe-instance-information \
+              --filters "Key=tag:Project,Values=zero-credential-pipeline" \
+              --query 'InstanceInformationList[0].PingStatus' --output text)
+            [ "$STATUS" = "Online" ] && exit 0
+            sleep 10
+          done
+          echo "::error::Instance never registered with SSM"
+          exit 1
+
+      - name: Configure via Ansible
+        working-directory: ansible
+        run: ansible-playbook site.yml
+
+      - name: Configure via Ansible (idempotency check)
+        working-directory: ansible
+        run: |
+          ansible-playbook site.yml | tee /tmp/second-run.log
+          if grep -qE "changed=[1-9]" /tmp/second-run.log; then
+            echo "::error::Playbook is not idempotent - second run reported changes"
+            exit 1
+          fi
 
   destroy:
     needs: apply
