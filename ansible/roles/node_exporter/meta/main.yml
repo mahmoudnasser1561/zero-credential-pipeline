@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: node_exporter
+  author: Mahmoud Nasser
+  description: Installs and runs Prometheus node_exporter as a systemd service
+  license: MIT
+  min_ansible_version: "2.15"

@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: common
+  author: Mahmoud Nasser
+  description: Base package, timezone, and system-user setup
+  license: MIT
+  min_ansible_version: "2.15"

@@ -1,0 +1,15 @@
+plugin: amazon.aws.aws_ec2
+regions:
+  - us-east-1
+filters:
+  tag:Project: zero-credential-pipeline
+  instance-state-name: running
+hostnames:
+  - instance-id
+compose:
+  ansible_connection: "'aws_ssm'"
+  ansible_aws_ssm_region: "'us-east-1'"
+  ansible_host: instance_id
+keyed_groups:
+  - key: tags.Environment
+    prefix: env

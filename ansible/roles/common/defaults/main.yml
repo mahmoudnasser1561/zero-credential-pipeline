@@ -1,0 +1,9 @@
+common_timezone: UTC
+
+common_packages:
+  - curl
+  - tar
+  - gnupg
+  - ca-certificates
+
+common_system_user: zcp

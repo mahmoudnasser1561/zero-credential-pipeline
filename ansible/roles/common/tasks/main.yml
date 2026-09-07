@@ -1,0 +1,21 @@
+---
+- name: Update apt package cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name: "{{ common_packages }}"
+    state: present
+
+- name: Set system timezone
+  community.general.timezone:
+    name: "{{ common_timezone }}"
+
+- name: Create dedicated non-root system user
+  ansible.builtin.user:
+    name: "{{ common_system_user }}"
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false

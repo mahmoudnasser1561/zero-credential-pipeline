@@ -1,0 +1,9 @@
+---
+- name: Configure zero-credential-pipeline instances
+  hosts: all
+  become: true
+  gather_facts: true
+
+  roles:
+    - common
+    - node_exporter
