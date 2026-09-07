@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 jobs:
-  plan:
+  checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,6 +19,16 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.14.6"
+
+      - name: tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: terraform
+
+      - name: ansible-lint
+        run: |
+          pip install --quiet ansible-lint
+          ansible-lint ansible/roles
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -31,7 +41,7 @@ jobs:
           terraform plan -no-color -input=false
 
   apply:
-    needs: plan
+    needs: checks
     runs-on: ubuntu-latest
     environment: provision
     steps:
