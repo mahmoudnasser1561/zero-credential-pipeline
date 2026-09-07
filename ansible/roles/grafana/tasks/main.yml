@@ -16,7 +16,9 @@
 
 - name: Install grafana package
   ansible.builtin.dnf:
-    name: "grafana-{{ grafana_version }}"
+    # full NEVRA required: a partial version string makes the dnf module
+    # misreport a successful install as a "already installed" failure
+    name: "grafana-{{ grafana_version }}-1.x86_64"
     state: present
 
 - name: Ensure datasource provisioning directory exists
