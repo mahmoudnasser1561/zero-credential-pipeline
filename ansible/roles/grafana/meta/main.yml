@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  role_name: grafana
+  author: Mahmoud Nasser
+  description: Installs Grafana from the official RPM repository and provisions a Prometheus datasource
+  license: MIT
+  min_ansible_version: "2.15"

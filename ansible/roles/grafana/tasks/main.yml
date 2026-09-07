@@ -1,0 +1,43 @@
+---
+- name: Add Grafana GPG key
+  ansible.builtin.rpm_key:
+    key: "{{ grafana_gpg_key_url }}"
+    state: present
+
+- name: Add Grafana yum repository
+  ansible.builtin.yum_repository:
+    name: grafana
+    description: Grafana OSS repository
+    baseurl: "{{ grafana_repo_baseurl }}"
+    gpgcheck: true
+    gpgkey: "{{ grafana_gpg_key_url }}"
+    repo_gpgcheck: true
+    enabled: true
+
+- name: Install grafana package
+  ansible.builtin.dnf:
+    name: "grafana-{{ grafana_version }}"
+    state: present
+
+- name: Ensure datasource provisioning directory exists
+  ansible.builtin.file:
+    path: /etc/grafana/provisioning/datasources
+    state: directory
+    owner: root
+    group: grafana
+    mode: "0750"
+
+- name: Provision Prometheus datasource
+  ansible.builtin.template:
+    src: prometheus-datasource.yml.j2
+    dest: /etc/grafana/provisioning/datasources/prometheus.yml
+    owner: root
+    group: grafana
+    mode: "0640"
+  notify: Restart grafana-server
+
+- name: Ensure grafana-server is enabled and started
+  ansible.builtin.systemd:
+    name: grafana-server
+    enabled: true
+    state: started

@@ -1,0 +1,6 @@
+grafana_version: "13.2.1"
+grafana_repo_baseurl: "https://rpm.grafana.com"
+grafana_gpg_key_url: "https://rpm.grafana.com/gpg.key"
+
+grafana_port: 3000
+grafana_prometheus_url: "http://localhost:9090"
