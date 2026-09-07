@@ -75,16 +75,7 @@ jobs:
           sudo dpkg -i /tmp/session-manager-plugin.deb
 
       - name: Wait for instance SSM registration
-        run: |
-          for i in $(seq 1 30); do
-            STATUS=$(aws ssm describe-instance-information \
-              --filters "Key=tag:Project,Values=zero-credential-pipeline" \
-              --query 'InstanceInformationList[0].PingStatus' --output text)
-            [ "$STATUS" = "Online" ] && exit 0
-            sleep 10
-          done
-          echo "::error::Instance never registered with SSM"
-          exit 1
+        run: .github/scripts/wait-for-ssm-ready.sh
 
       - name: Configure via Ansible
         working-directory: ansible
