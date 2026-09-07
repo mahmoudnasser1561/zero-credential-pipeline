@@ -1,11 +1,10 @@
 ---
-- name: Update apt package cache
-  ansible.builtin.apt:
+- name: Update dnf package cache
+  ansible.builtin.dnf:
     update_cache: true
-    cache_valid_time: 3600
 
 - name: Install base packages
-  ansible.builtin.apt:
+  ansible.builtin.dnf:
     name: "{{ common_packages }}"
     state: present
 
