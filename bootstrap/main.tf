@@ -170,6 +170,13 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     ]
     resources = ["*"]
   }
+
+  statement {
+    sid       = "SsmPublicAmiParameterRead"
+    effect    = "Allow"
+    actions   = ["ssm:GetParameter"]
+    resources = ["arn:aws:ssm:*::parameter/aws/service/ami-amazon-linux-latest/*"]
+  }
 }
 
 resource "aws_iam_role_policy" "github_actions" {
