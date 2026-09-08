@@ -51,8 +51,25 @@ jobs:
           terraform init -input=false
           terraform plan -no-color -input=false
 
+  stackcheck-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: stackcheck/go.mod
+          cache-dependency-path: stackcheck/go.sum
+
+      - working-directory: stackcheck
+        run: |
+          go vet ./...
+          go build ./...
+          go test ./...
+          docker build -t stackcheck:ci .
+
   apply:
-    needs: [tfsec, ansible-lint, terraform-plan]
+    needs: [tfsec, ansible-lint, terraform-plan, stackcheck-build]
     runs-on: ubuntu-latest
     environment: provision
     steps:
@@ -103,6 +120,17 @@ jobs:
 
       - name: Verify idempotency (second run must report no changes)
         run: .github/scripts/check-ansible-idempotent.sh ansible
+
+      - name: Build stackcheck image
+        working-directory: stackcheck
+        run: docker build -t stackcheck:ci .
+
+      - name: Run stackcheck
+        run: |
+          docker run --rm \
+            -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_SESSION_TOKEN \
+            stackcheck:ci --target-type ec2 --region "${{ vars.AWS_REGION }}" \
+            --tag "Project=zero-credential-pipeline" --format text
 
   destroy:
     needs: apply
