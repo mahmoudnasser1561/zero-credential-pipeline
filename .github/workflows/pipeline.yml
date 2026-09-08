@@ -68,7 +68,7 @@ jobs:
           go test ./...
           docker build -t stackcheck:ci .
 
-  apply:
+  terraform-apply:
     needs: [tfsec, ansible-lint, terraform-plan, stackcheck-build]
     runs-on: ubuntu-latest
     environment: provision
@@ -89,6 +89,20 @@ jobs:
           terraform init -input=false
           terraform apply -auto-approve -input=false
 
+      - name: Wait for instance SSM registration
+        run: .github/scripts/wait-for-ssm-ready.sh
+
+  configure-common:
+    needs: terraform-apply
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
       - name: Install Ansible tooling
         run: |
           pip install --quiet ansible "boto3>=1.35.0" "botocore>=1.35.0"
@@ -99,27 +113,115 @@ jobs:
           curl -sL "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o /tmp/session-manager-plugin.deb
           sudo dpkg -i /tmp/session-manager-plugin.deb
 
-      - name: Wait for instance SSM registration
-        run: .github/scripts/wait-for-ssm-ready.sh
-
-      - name: Configure common
-        working-directory: ansible
+      - working-directory: ansible
         run: ansible-playbook site.yml --tags common
 
-      - name: Configure node_exporter
-        working-directory: ansible
+  configure-node-exporter:
+    needs: configure-common
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install Ansible tooling
+        run: |
+          pip install --quiet ansible "boto3>=1.35.0" "botocore>=1.35.0"
+          ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: Install SSM Session Manager plugin
+        run: |
+          curl -sL "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o /tmp/session-manager-plugin.deb
+          sudo dpkg -i /tmp/session-manager-plugin.deb
+
+      - working-directory: ansible
         run: ansible-playbook site.yml --tags node_exporter
 
-      - name: Configure prometheus
-        working-directory: ansible
+  configure-prometheus:
+    needs: configure-node-exporter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install Ansible tooling
+        run: |
+          pip install --quiet ansible "boto3>=1.35.0" "botocore>=1.35.0"
+          ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: Install SSM Session Manager plugin
+        run: |
+          curl -sL "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o /tmp/session-manager-plugin.deb
+          sudo dpkg -i /tmp/session-manager-plugin.deb
+
+      - working-directory: ansible
         run: ansible-playbook site.yml --tags prometheus
 
-      - name: Configure grafana
-        working-directory: ansible
+  configure-grafana:
+    needs: configure-prometheus
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install Ansible tooling
+        run: |
+          pip install --quiet ansible "boto3>=1.35.0" "botocore>=1.35.0"
+          ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: Install SSM Session Manager plugin
+        run: |
+          curl -sL "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o /tmp/session-manager-plugin.deb
+          sudo dpkg -i /tmp/session-manager-plugin.deb
+
+      - working-directory: ansible
         run: ansible-playbook site.yml --tags grafana
+
+  verify-idempotency:
+    needs: configure-grafana
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install Ansible tooling
+        run: |
+          pip install --quiet ansible "boto3>=1.35.0" "botocore>=1.35.0"
+          ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: Install SSM Session Manager plugin
+        run: |
+          curl -sL "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o /tmp/session-manager-plugin.deb
+          sudo dpkg -i /tmp/session-manager-plugin.deb
 
       - name: Verify idempotency (second run must report no changes)
         run: .github/scripts/check-ansible-idempotent.sh ansible
+
+  stackcheck:
+    needs: verify-idempotency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Build stackcheck image
         working-directory: stackcheck
@@ -133,7 +235,7 @@ jobs:
             --tag "Project=zero-credential-pipeline" --format text
 
   destroy:
-    needs: apply
+    needs: stackcheck
     if: always()
     runs-on: ubuntu-latest
     environment: teardown
