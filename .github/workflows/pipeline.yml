@@ -6,6 +6,8 @@ on:
     paths:
       - "terraform/**"
       - "ansible/**"
+      - "stackcheck/**"
+      - ".github/workflows/pipeline.yml"
   workflow_dispatch: {}
 
 permissions:
