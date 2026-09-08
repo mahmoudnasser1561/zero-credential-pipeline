@@ -5,3 +5,4 @@
 .env
 *.pem
 id_rsa*
+stackcheck/bin/
