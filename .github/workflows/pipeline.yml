@@ -150,8 +150,8 @@ jobs:
         run: |
           docker run --rm \
             -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_SESSION_TOKEN \
-            stackcheck:ci --target-type ec2 --region "${{ vars.AWS_REGION }}" \
-            --tag "Project=zero-credential-pipeline" --format text
+            stackcheck:ci --stack observability --discovery ec2-tag --executor ssm \
+            --region "${{ vars.AWS_REGION }}" --tag "Project=zero-credential-pipeline" --format text
 
   destroy:
     needs: stackcheck
