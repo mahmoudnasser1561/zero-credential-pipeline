@@ -29,7 +29,6 @@ persisted anywhere.
 | SSH keys required | **0** |
 | Open inbound ports on the instance | **0** |
 | Manual approval gates | **2** (provision, teardown) |
-| Real upstream bugs found and root-caused during development | **2** |
 
 The 5m17s figure covers Terraform provisioning through full Ansible
 configuration of all three services. It excludes static analysis checks and
@@ -41,10 +40,20 @@ the deployment itself.
 ### Zero credentials, zero exposure
 
 There are no AWS access keys anywhere in this repository or its CI
-configuration. GitHub Actions authenticates to AWS by exchanging a
-short-lived OIDC token for temporary STS credentials, scoped to a single IAM
-role via a trust policy tied to this exact repository. Those credentials
-expire in about an hour and are never stored.
+configuration. Each job mints a signed OIDC token identifying itself to
+GitHub's own token issuer (`token.actions.githubusercontent.com`), which an
+IAM OIDC identity provider in AWS trusts. The IAM role's trust policy
+(`bootstrap/oidc.tf`) only allows `sts:AssumeRoleWithWebIdentity` if the
+token's `sub` claim matches one of three exact, immutable-ID-scoped values:
+```
+repo:{owner}@{ownerId}/{repo}@{repoId}:ref:refs/heads/main
+repo:{owner}@{ownerId}/{repo}@{repoId}:environment:provision
+repo:{owner}@{ownerId}/{repo}@{repoId}:environment:teardown
+```
+So a token minted for a push to `main`, or for a job running under the
+`provision`/`teardown` environments, is the only thing that can assume the
+role, and only in this repository. The resulting STS credentials expire in
+about an hour and are never stored anywhere.
 
 The EC2 instance itself has no SSH daemon exposed and its security group has
 no inbound rules at all. Every configuration and verification step reaches
@@ -89,10 +98,45 @@ Four independent checks (a security scan via `tfsec`, a lint pass via
 `ansible-lint`, a Terraform plan, and a build of the verification tool) run
 in parallel and gate everything downstream. `terraform-apply` requires a
 human to approve before any real infrastructure is created. `configure`
-applies four Ansible roles (`common`, `node_exporter`, `prometheus`,
-`grafana`) over SSM and confirms a second run reports no drift. `stackcheck`
-then runs as its own containerized job. `destroy` requires a second, separate
-human approval, so infrastructure is never left running unattended.
+applies four Ansible roles over SSM and confirms a second run reports no
+drift. `stackcheck` then runs as its own containerized job. `destroy`
+requires a second, separate human approval, so infrastructure is never left
+running unattended.
+
+#### Configuration (Ansible over SSM)
+
+Ansible reaches the instance the same way everything else does: a
+tag-based dynamic inventory (`ansible/inventory/aws_ec2.yml`) discovers it
+by the `Project` tag, and the `community.aws.aws_ssm` connection plugin
+runs every task through the SSM channel, no SSH involved at any point.
+
+- **`common`**: base packages, a dedicated non-root system user, UTC
+  timezone.
+- **`node_exporter`**: downloads the pinned release, verifies it against a
+  known-good SHA256 checksum, installs it as a systemd service.
+- **`prometheus`**: same checksum-verified binary pattern, renders a
+  scrape config from a template (self-scrape plus `node_exporter`),
+  validates it with `promtool` before the service reloads.
+- **`grafana`**: installs from Grafana's own signed RPM repository,
+  auto-provisions the Prometheus datasource via Grafana's file-based
+  provisioning so it's wired up the moment the service starts, not a
+  manual step through the UI.
+
+### Viewing the live stack
+
+Grafana and Prometheus are reachable the same zero-inbound way as
+everything else, an SSM port-forward tunnel, not a new access path opened
+up just for viewing dashboards:
+
+```
+aws ssm start-session --target <instance-id> \
+  --document-name AWS-StartPortForwardingSession \
+  --parameters '{"portNumber":["3000"],"localPortNumber":["3000"]}'
+```
+
+then open `http://localhost:3000` (Grafana; swap `3000` for `9090` for
+Prometheus directly). `<instance-id>` comes straight out of the
+`terraform-apply` job's log (`terraform output instance_id`).
 
 ### Verification, not just deployment
 
@@ -125,8 +169,9 @@ can consume it directly), with a human-readable table available via
 
 ## Engineering challenges resolved
 
-Two real, non-obvious bugs surfaced during development, both diagnosed from
-first principles rather than worked around:
+Two non-obvious issues came up during development, both caused by upstream
+tooling behaving unexpectedly and diagnosed from first principles rather
+than worked around:
 
 **A silently-lying Ansible module.** `ansible.builtin.dnf` reported a
 successful Grafana package install as a failed "already installed"
